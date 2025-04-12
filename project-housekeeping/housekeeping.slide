@@ -1,0 +1,315 @@
+# Golang project housekeeping
+April 2025
+
+Andres Bott
+bott@adobe.com
+
+
+## Summary
+
+- build-in tools
+- License Check
+- golangci-lint
+- go routine leak
+- Build version
+- bonus: makefile
+
+
+## Go build in
+
+* go fmt: formats the go code (normally our IDEs run it automatically)
+* go mod tidy: updated the go.mod by removing unused dependencies and adding required ones
+* go mod verify: verifies the integrity of the go modules on disk
+
+## License Check
+
+Why: Make sure the dependencies you import are allowed by your company/project
+
+We can use: [go-licence-detector](https://github.com/elastic/go-licence-detector)
+
+## Define Licenses
+
+We can provide a list of allowed licenses in the project.
+
+_allowedLicenses.json_
+```
+{
+  "allowlist": [
+    "Apache-2.0",
+    "MIT",
+    ...
+    "MPL-2.0",
+  ]
+}
+```
+some packages, e.g. private ones we might need overrides
+
+_licenseOverride.json_
+```
+{"name": "go.uber.org/multierr", "licenceType": "MIT"}
+{"name": "go.uber.org/goleak", "licenceType": "MIT"}
+```
+
+## Check Licenses
+
+tool parses output of
+
+```
+go list -m -json all
+```
+
+run with:
+
+```
+go list -m -mod=readonly  -json all  | go-licence-detector \
+-includeIndirect -rules allowedLicenses.json \
+-overrides overrideLicenses.json
+
+2025/04/11 14:27:25 Failed to detect licences: dependency
+github.com/cyphar/filepath-securejoin uses licence
+BSD-3-Clause which is not allowed by the rules file
+
+```
+
+## Golangci-lint
+
+[golangci-lint](https://github.com/golangci/golangci-lint) looks like it has become the de-facto standard for code linting.
+
+* mostly intended to be run in CI 
+* highly configurable e.g., exclude certain linters on tests, etc
+* tons of rules: https://golangci-lint.run/usage/linters/
+* Recently updated to V2 with a change in configuration
+
+fun fact: they do **not** recommend to use the new _"go tool"_ introduced in 1.24
+
+## Golangci-lint: defaults
+
+* **errcheck:** checks for unchecked errors in Go code.
+
+```go
+func myFunc() error{}
+
+myfunc() // this will throw a linter error
+
+err := myfunc() // use this instead
+```
+
+* **govet:** Vet examines Go source code and reports suspicious constructs.
+
+```go
+func unreachableCode() {
+    return
+    println("This will never run") // unreachable
+}
+```
+* **ineffassign:** Detects when assignments to existing variables are not used.
+
+```go
+x := 1 // ineffassign will flag this
+x = 2
+```
+
+## Golangci-lint: defaults
+
+* **staticcheck:** It's the set of rules from staticcheck, ~150 rules like
+
+```go
+after := time.Now().Add(1 * time.Minute)
+if time.Now() == after { // QF1009: probably want to use time.Time.Equal instead 
+```
+
+```go
+for _, e := range y {
+    x = append(x, e) //  S1011: should replace loop with x = append(x, y...)
+}
+```
+
+* **unused:** Checks Go code for unused constants, variables, functions and types.
+```go
+func foo (){} // never called func
+type bar string // never used
+```
+
+
+## Golangci-lint: nolintlint
+
+enforces that when excluding a linter it needs to be justified and properly formatted
+
+```go
+ //nolint:foo // the reason to disable foo
+```
+
+```
+linters:
+  enable:
+    - nolintlint
+  settings:
+    nolintlint:
+      # Exclude following linters from requiring an explanation.
+      allow-no-explanation: []
+      # Enable to require an explanation of nonzero length after each nolint directive.
+      require-explanation: true
+      # Enable to require nolint directives to mention the specific linter being suppressed.
+      require-specific: true
+```
+
+## Golangci-lint: goheader
+
+enforces that go files are checked to contain a header following the pattern defined in header.txt
+
+```go
+ // ADOBE CONFIDENTIAL
+ // ___________________
+ //
+ // Copyright  {{ SOME-YEAR }} {{ COMPANY }}
+ // All Rights Reserved.
+ // ....
+```
+
+```
+linters:
+  enable:
+    - goheader
+  settings:
+    goheader:
+      values:
+        const:
+          COMPANY: Adobe
+        regexp:
+          SOME-YEAR: ([0-9])*
+      template-path: header.txt
+```
+
+
+## Golangci-lint: code complexity
+
+```
+linters:
+  enable:
+    - gocyclo
+    - gocognit
+    - nestif
+  settings:    
+    gocyclo:
+      min-complexity: 20 // default: 30
+    gocognit:
+      min-complexity: 15 // default: 30
+    nestif:
+      min-complexity: 4 // default: 5
+
+```
+
+* **gocyclo:** think of cyclomatic complexity as the different permutations of executions paths a function has
+* **gocognit:** Computes and checks the cognitive complexity of functions.
+* **nestif:** check the complexity of nested ifs
+
+
+
+
+## Golangci-lint: gosec
+
+Inspects source code for security problems, has ~40 checks like: 
+* G101: Look for hard coded credentials
+* G501-G505: import of weak crypto packages
+* G602: Slice access out of bounds
+```
+	data := []int{1, 2, 3}
+	index := 5
+
+	fmt.Println("Value:", data[index]) // trigger gosec
+```
+
+individual checks can be excluded
+```
+linters:
+  settings:
+    gosec:
+      excludes:
+        - G101 # Look for hard coded credentials
+```
+
+
+
+## Go routines leak check
+
+Uber has published a package to check for go routines at the end of test executions
+
+from the documentation:
+
+.code  goleak/goleak.go /BEGIN GOLEAKTEST/,/END GOLEAKTEST/
+
+This will ensure that at the end of a single test, no routine is running
+
+## 
+advanced use:
+
+check after all tests are done, ignore known functions
+
+.code  goleak/goleak.go /BEGIN GOLEAKTESTADV/,/END GOLEAKTESTADV/
+
+
+## Build version
+
+You can define variables when compiling a binary using ldflags, this is normally useful to verify what
+version you are running.
+
+I like to expose this using a separated package
+
+.code  metainfo/meta.go
+
+## 
+
+ _..._ then build it with:
+
+```
+go build 
+-ldflags="-X github.com/my-app/app/metainfo.Version={{.Version}} \
+-X github.com/my-app/app/metainfo.BuildTime={{.Date}} \
+-X github.com/my-app/app/metainfo.ShaVer={{.Commit}}"
+```
+
+now it is easy to reference from where you need it
+
+```go
+fmt.Printf("Version: %s\n", metainfo.Version)
+fmt.Printf("Build date: %s\n", metainfo.BuildTime)
+fmt.Printf("Commit sha: %s\n", metainfo.ShaVer)
+fmt.Printf("Compiler: %s\n", runtime.Version())
+```
+
+## Bonus: Makefile
+
+I usually like to put a makefile in the top of the repo with common entry points
+
+a sample Makefile is included with the presentation materials
+
+```
+Usage:
+  make <target>
+
+Testing
+  test             run fast tests
+  lint             run go linter
+  license-check    check for invalid licenses
+  cover-report     generate a coverage report
+  verify           run all tests
+
+Running
+  run              start the GO service
+
+Building
+  build            use goreleaser to build to current OS/Arch
+
+Release
+  release          release a new version
+```
+
+
+## Links
+
+* https://github.com/elastic/go-licence-detector
+* https://github.com/uber-go/goleak
+* https://golangci-lint.run/
+
+
+
