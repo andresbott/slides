@@ -15,6 +15,17 @@ bott@adobe.com
 - bonus: makefile
 
 
+## The power of CI
+
+All this housekeeping actions need to be automated.
+
+Ideally added early on in a project: retrofitting is going to be very hard
+
+-  **Consistency** across developers
+-  **Prevention** code deviation
+
+
+
 ## Go build in
 
 * go fmt: formats the go code (normally our IDEs run it automatically)
@@ -23,13 +34,9 @@ bott@adobe.com
 
 ## License Check
 
-Why: Make sure the dependencies you import are allowed by your company/project
+Make sure the dependencies you import are allowed by your company/project
 
-We can use: [go-licence-detector](https://github.com/elastic/go-licence-detector)
-
-## Define Licenses
-
-We can provide a list of allowed licenses in the project.
+ [go-licence-detector](https://github.com/elastic/go-licence-detector):  define list of allowed licenses in the project.
 
 _allowedLicenses.json_
 ```

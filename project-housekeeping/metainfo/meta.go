@@ -1,10 +1,8 @@
 package metainfo
 
-import "time"
-
 func init() {
 	if BuildTime == "" {
-		BuildTime = time.Now().Format(time.RFC3339)
+		BuildTime = "unknown"
 	}
 }
 
