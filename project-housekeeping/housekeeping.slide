@@ -7,7 +7,9 @@ bott@adobe.com
 
 ## Summary
 
+- Why it matters: The power of CI
 - build-in tools
+- test coverage
 - License Check
 - golangci-lint
 - go routine leak
@@ -17,12 +19,15 @@ bott@adobe.com
 
 ## The power of CI
 
-All this housekeeping actions need to be automated.
+All this housekeeping actions need to be automated in the CI.
+
+Why:
+-  **Consistency** across developer
+-  **Prevention** code deviation, code quality
 
 Ideally added early on in a project: retrofitting is going to be very hard
 
--  **Consistency** across developers
--  **Prevention** code deviation
+
 
 
 
@@ -31,6 +36,21 @@ Ideally added early on in a project: retrofitting is going to be very hard
 * go fmt: formats the go code (normally our IDEs run it automatically)
 * go mod tidy: updated the go.mod by removing unused dependencies and adding required ones
 * go mod verify: verifies the integrity of the go modules on disk
+
+## Test Coverage
+* Using build in tools
+* Interesting approach: check test coverage per Go package
+    * recommendation for certain package trees, e.g internal
+    * not build in into go tool chain but easily doable (see make target)
+
+```
+❌ Coverage in github.com/andresbott/slides/project-housekeeping/goleak is below 80!
+❌ Coverage in github.com/andresbott/slides/project-housekeeping/linters is below 80!
+❌ Coverage in github.com/andresbott/slides/project-housekeeping/metainfo is below 80!
+make: *** [Makefile:25: coverage] Error 1
+
+```
+
 
 ## License Check
 
@@ -234,6 +254,7 @@ linters:
       excludes:
         - G101 # Look for hard coded credentials
 ```
+
 
 
 
