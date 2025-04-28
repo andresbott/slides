@@ -42,9 +42,12 @@ coverage: ## check code coverage numbers
 benchmark: ## run go benchmarks
 	@go test -run=^$$ -bench=. ./...
 
+license-check-faulty: ## check for invalid licenses without overrides
+	# depends on : https://github.com/elastic/go-licence-detector
+	@go list -m -mod=readonly -json all | go-licence-detector -includeIndirect -rules noAllowedLicenses.json -overrides overrideLicenses.json
 license-check: ## check for invalid licenses
 	# depends on : https://github.com/elastic/go-licence-detector
-	@go list -m -mod=readonly -json all | go-licence-detector -includeIndirect -validate -rules allowedLicenses.json
+	@go list -m -mod=readonly -json all | go-licence-detector -includeIndirect -rules allowedLicenses.json -overrides overrideLicenses.json
 
 .PHONY: verify
 verify: test license-check lint coverage benchmark ## run all tests

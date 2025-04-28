@@ -32,24 +32,11 @@ Ideally added early on in a project: retrofitting is going to be very hard
 
 
 ## Go build in
+* Most IDEs run these for you
+  * go fmt: formats the go code
+  * go mod tidy: updated the go.mod by removing unused dependencies and adding required ones
+  * go mod verify: verifies the integrity of the go modules on disk
 
-* go fmt: formats the go code (normally our IDEs run it automatically)
-* go mod tidy: updated the go.mod by removing unused dependencies and adding required ones
-* go mod verify: verifies the integrity of the go modules on disk
-
-## Test Coverage
-* Using build in tools
-* Interesting approach: check test coverage per Go package
-    * recommendation for certain package trees, e.g internal
-    * not build in into go tool chain but easily doable (see make target)
-
-```
-❌ Coverage in github.com/andresbott/slides/project-housekeeping/goleak is below 80!
-❌ Coverage in github.com/andresbott/slides/project-housekeeping/linters is below 80!
-❌ Coverage in github.com/andresbott/slides/project-housekeeping/metainfo is below 80!
-make: *** [Makefile:25: coverage] Error 1
-
-```
 
 
 ## License Check
@@ -256,7 +243,47 @@ linters:
 ```
 
 
+## Test Coverage
+* Using build in tools
+* Interesting approach: check test coverage per Go package
+  * recommendation for certain package trees, e.g internal
+  * not build in into go tool chain but easily doable
 
+```
+❌ Coverage in github.com/andresbott/slides/project-housekeeping/goleak is below 80!
+❌ Coverage in github.com/andresbott/slides/project-housekeeping/linters is below 80!
+❌ Coverage in github.com/andresbott/slides/project-housekeeping/metainfo is below 80!
+make: *** [Makefile:25: coverage] Error 1
+
+```
+
+
+## Test Coverage
+
+
+```
+  COVERAGE_THRESHOLD ?= 80
+  
+  .PHONY: coverage
+  coverage: ## check code coverage numbers
+      @fail=0; \
+      for pkg in $$(go list ./internal/...); do \
+          go test -coverprofile=coverage.out -covermode=atomic $$pkg > /dev/null; \
+          if [ -f coverage.out ]; then \
+              coverage=$$(go tool cover -func=coverage.out | grep total: | awk '{print $$3}' | sed 's/%//'); \
+              if [ $$(echo "$$coverage < $(COVERAGE_THRESHOLD)" | bc -l) -eq 1 ]; then \
+                  echo "❌ Coverage in $$pkg is below $(COVERAGE_THRESHOLD)!"; \
+                  fail=1; \
+              fi; \
+              rm -f coverage.out; \
+          else \
+              echo "⚠️ No coverage data for $$pkg"; \
+              fail=1; \
+          fi; \
+      done; \
+      exit $$fail
+
+```
 
 ## Go routines leak check
 
